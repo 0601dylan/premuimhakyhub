@@ -3,11 +3,15 @@
 -- added character respawn handling, implemented fly/noclip/ESP/invis/aimbot/aimassist properly.
 -- Added Trigger Bot feature: auto-clicks when mouse is over a player.
 -- Enhanced Aimbot for Rivals: Team check, alive check, prediction, FOV limit, visible check.
+-- Fixed aimbot for Rivals by implementing snap on shoot.
+-- Added more games: Da Hood, Phantom Forces, Bad Business.
+-- Added more features: Fullbright, FOV Changer, Godmode (local health set).
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local player = Players.LocalPlayer
 local camera = Workspace.CurrentCamera
@@ -26,6 +30,9 @@ local config = {
     aimbotEnabled = false,
     aimAssistEnabled = false,
     triggerBotEnabled = false,
+    fullbrightEnabled = false,
+    godmodeEnabled = false,
+    fovValue = 70,
     teamCheck = true,
     visibleCheck = true,
     prediction = 0.135,
@@ -49,7 +56,10 @@ local games = {
     "Universal",
     "Rivals",
     "Blox Fruits",
-    "Arsenal"
+    "Arsenal",
+    "Da Hood",
+    "Phantom Forces",
+    "Bad Business"
 }
 -- GUI creation
 local ScreenGui = Instance.new("ScreenGui")
@@ -372,6 +382,37 @@ local function toggleTriggerBot()
     config.triggerBotEnabled = not config.triggerBotEnabled
     TriggerBotBtn.Text = "Trigger Bot: " .. (config.triggerBotEnabled and "ON" or "OFF")
 end
+-- Fullbright toggle
+local function toggleFullbright()
+    config.fullbrightEnabled = not config.fullbrightEnabled
+    FullbrightBtn.Text = "Fullbright: " .. (config.fullbrightEnabled and "ON" or "OFF")
+    if config.fullbrightEnabled then
+        Lighting.Brightness = 1
+        Lighting.ClockTime = 14
+        Lighting.FogEnd = 100000
+        Lighting.GlobalShadows = false
+        Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+    else
+        Lighting.Brightness = 1
+        Lighting.ClockTime = 14
+        Lighting.FogEnd = 100000
+        Lighting.GlobalShadows = true
+        Lighting.Ambient = Color3.fromRGB(128, 128, 128)
+    end
+end
+-- Godmode toggle (local)
+local function toggleGodmode()
+    config.godmodeEnabled = not config.godmodeEnabled
+    GodmodeBtn.Text = "Godmode: " .. (config.godmodeEnabled and "ON" or "OFF")
+end
+RunService.Heartbeat:Connect(function()
+    if config.godmodeEnabled then
+        local hum = getHumanoid()
+        if hum then
+            hum.Health = hum.MaxHealth
+        end
+    end
+end)
 -- Button creator
 local function createButton(text, parent, callback)
     local btn = Instance.new("TextButton")
@@ -571,17 +612,19 @@ local function buildUI()
         config.flySpeed = v
     end, mainTab)
     -- Visuals tab
-    if selectedGame ~= "Rivals" then
-        ESPBtn = createButton("ESP: OFF", visualsTab, toggleESP)
-        InvisBtn = createButton("Invis: OFF", visualsTab, toggleInvis)
-    end
+    ESPBtn = createButton("ESP: OFF", visualsTab, toggleESP)
+    InvisBtn = createButton("Invis: OFF", visualsTab, toggleInvis)
+    FullbrightBtn = createButton("Fullbright: OFF", visualsTab, toggleFullbright)
+    createSlider("FOV", config.fovValue, 70, 120, function(v)
+        config.fovValue = v
+        camera.FieldOfView = v
+    end, visualsTab)
     -- Teleports tab (placeholder)
-    if selectedGame ~= "Rivals" then
-        createButton("TP to Spawn", teleportsTab, function() end)
-        createButton("TP to Player", teleportsTab, function() end)
-    end
+    createButton("TP to Spawn", teleportsTab, function() end)
+    createButton("TP to Player", teleportsTab, function() end)
     -- Settings tab
     AntiDetectionBtn = createButton("Anti-Detect: OFF", settingsTab, toggleAntiDetect)
+    GodmodeBtn = createButton("Godmode: OFF", settingsTab, toggleGodmode)
     createButton("Theme: Gold", settingsTab, function() end) -- Placeholder
     -- Combat tab
     if combatTab then
@@ -594,22 +637,20 @@ local function buildUI()
             AimAssistBtn.Text = "Aim Assist: " .. (config.aimAssistEnabled and "ON" or "OFF")
         end)
         TriggerBotBtn = createButton("Trigger Bot: OFF", combatTab, toggleTriggerBot)
-        if selectedGame == "Rivals" then
-            TeamCheckBtn = createButton("Team Check: " .. (config.teamCheck and "ON" or "OFF"), combatTab, function()
-                config.teamCheck = not config.teamCheck
-                TeamCheckBtn.Text = "Team Check: " .. (config.teamCheck and "ON" or "OFF")
-            end)
-            VisibleCheckBtn = createButton("Visible Check: " .. (config.visibleCheck and "ON" or "OFF"), combatTab, function()
-                config.visibleCheck = not config.visibleCheck
-                VisibleCheckBtn.Text = "Visible Check: " .. (config.visibleCheck and "ON" or "OFF")
-            end)
-            createSlider("Aim FOV", config.aimFOV, 50, 1000, function(v)
-                config.aimFOV = v
-            end, combatTab)
-            createSlider("Prediction", math.floor(config.prediction * 1000), 0, 500, function(v)
-                config.prediction = v / 1000
-            end, combatTab)
-        end
+        TeamCheckBtn = createButton("Team Check: " .. (config.teamCheck and "ON" or "OFF"), combatTab, function()
+            config.teamCheck = not config.teamCheck
+            TeamCheckBtn.Text = "Team Check: " .. (config.teamCheck and "ON" or "OFF")
+        end)
+        VisibleCheckBtn = createButton("Visible Check: " .. (config.visibleCheck and "ON" or "OFF"), combatTab, function()
+            config.visibleCheck = not config.visibleCheck
+            VisibleCheckBtn.Text = "Visible Check: " .. (config.visibleCheck and "ON" or "OFF")
+        end)
+        createSlider("Aim FOV", config.aimFOV, 50, 1000, function(v)
+            config.aimFOV = v
+        end, combatTab)
+        createSlider("Prediction", math.floor(config.prediction * 1000), 0, 500, function(v)
+            config.prediction = v / 1000
+        end, combatTab)
     end
     -- Universal random buttons
     if selectedGame == "Universal" then
@@ -679,12 +720,7 @@ local function getClosestPlayer()
     return closestPos
 end
 RunService.RenderStepped:Connect(function()
-    if config.aimbotEnabled then
-        local targetPos = getClosestPlayer()
-        if targetPos then
-            camera.CFrame = CFrame.lookAt(camera.CFrame.Position, targetPos)
-        end
-    elseif config.aimAssistEnabled then
+    if config.aimAssistEnabled then
         local targetPos = getClosestPlayer()
         if targetPos then
             local targetDir = (targetPos - camera.CFrame.Position).Unit
@@ -701,6 +737,18 @@ RunService.RenderStepped:Connect(function()
                 VirtualInputManager:SendMouseButtonEvent(mouse.X, mouse.Y, 0, true, game, 0)
                 VirtualInputManager:SendMouseButtonEvent(mouse.X, mouse.Y, 0, false, game, 0)
             end
+        end
+    end
+end)
+-- Aimbot snap on shoot for Rivals
+UserInputService.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 and config.aimbotEnabled then
+        local targetPos = getClosestPlayer()
+        if targetPos then
+            local oldCFrame = camera.CFrame
+            camera.CFrame = CFrame.lookAt(camera.CFrame.Position, targetPos)
+            task.wait(0.01) -- Wait for shoot
+            camera.CFrame = oldCFrame
         end
     end
 end)
