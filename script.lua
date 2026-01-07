@@ -2,6 +2,7 @@
 -- Fixed version: Cleaned syntax, completed missing functions, proper button references,
 -- added character respawn handling, implemented fly/noclip/ESP/invis/aimbot/aimassist properly.
 -- Added Trigger Bot feature: auto-clicks when mouse is over a player.
+-- Enhanced Aimbot for Rivals: Team check, alive check, prediction, FOV limit, visible check.
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -25,6 +26,10 @@ local config = {
     aimbotEnabled = false,
     aimAssistEnabled = false,
     triggerBotEnabled = false,
+    teamCheck = true,
+    visibleCheck = true,
+    prediction = 0.135,
+    aimFOV = 300,
 }
 local flying = false
 local manualNoclip = false
@@ -580,15 +585,31 @@ local function buildUI()
     createButton("Theme: Gold", settingsTab, function() end) -- Placeholder
     -- Combat tab
     if combatTab then
-        local AimbotBtn = createButton("Aimbot: OFF", combatTab, function()
+        AimbotBtn = createButton("Aimbot: OFF", combatTab, function()
             config.aimbotEnabled = not config.aimbotEnabled
             AimbotBtn.Text = "Aimbot: " .. (config.aimbotEnabled and "ON" or "OFF")
         end)
-        local AimAssistBtn = createButton("Aim Assist: OFF", combatTab, function()
+        AimAssistBtn = createButton("Aim Assist: OFF", combatTab, function()
             config.aimAssistEnabled = not config.aimAssistEnabled
             AimAssistBtn.Text = "Aim Assist: " .. (config.aimAssistEnabled and "ON" or "OFF")
         end)
         TriggerBotBtn = createButton("Trigger Bot: OFF", combatTab, toggleTriggerBot)
+        if selectedGame == "Rivals" then
+            TeamCheckBtn = createButton("Team Check: " .. (config.teamCheck and "ON" or "OFF"), combatTab, function()
+                config.teamCheck = not config.teamCheck
+                TeamCheckBtn.Text = "Team Check: " .. (config.teamCheck and "ON" or "OFF")
+            end)
+            VisibleCheckBtn = createButton("Visible Check: " .. (config.visibleCheck and "ON" or "OFF"), combatTab, function()
+                config.visibleCheck = not config.visibleCheck
+                VisibleCheckBtn.Text = "Visible Check: " .. (config.visibleCheck and "ON" or "OFF")
+            end)
+            createSlider("Aim FOV", config.aimFOV, 50, 1000, function(v)
+                config.aimFOV = v
+            end, combatTab)
+            createSlider("Prediction", math.floor(config.prediction * 1000), 0, 500, function(v)
+                config.prediction = v / 1000
+            end, combatTab)
+        end
     end
     -- Universal random buttons
     if selectedGame == "Universal" then
@@ -620,35 +641,54 @@ for _, gameName in ipairs(games) do
     end)
 end
 -- Aimbot / Aim Assist / Trigger Bot
+local function isVisible(targetPos, targetChar)
+    local origin = camera.CFrame.Position
+    local direction = targetPos - origin
+    local rayParams = RaycastParams.new()
+    rayParams.FilterDescendantsInstances = {player.Character}
+    rayParams.FilterType = Enum.RaycastFilterType.Exclude
+    local rayResult = Workspace:Raycast(origin, direction, rayParams)
+    if rayResult then
+        return rayResult.Instance:IsDescendantOf(targetChar)
+    end
+    return true
+end
 local function getClosestPlayer()
-    local closest, minDist = nil, math.huge
+    local closestPos = nil
+    local minDist = math.huge
     local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
-    for _, plr in Players:GetPlayers() do
-        if plr ~= player and plr.Character and plr.Character:FindFirstChild("Head") then
-            local head = plr.Character.Head
-            local pos, onScreen = camera:WorldToViewportPoint(head.Position)
-            if onScreen then
-                local dist = (Vector2.new(pos.X, pos.Y) - center).Magnitude
-                if dist < minDist then
-                    minDist = dist
-                    closest = head
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= player and (not config.teamCheck or plr.Team ~= player.Team) and plr.Character then
+            local hum = plr.Character:FindFirstChildOfClass("Humanoid")
+            local head = plr.Character:FindFirstChild("Head")
+            if hum and head and hum.Health > 0 then
+                local predictedPos = head.Position + head.AssemblyLinearVelocity * config.prediction
+                local pos, onScreen = camera:WorldToViewportPoint(predictedPos)
+                if onScreen then
+                    local dist = (Vector2.new(pos.X, pos.Y) - center).Magnitude
+                    if dist < config.aimFOV and dist < minDist then
+                        if not config.visibleCheck or isVisible(predictedPos, plr.Character) then
+                            minDist = dist
+                            closestPos = predictedPos
+                        end
+                    end
                 end
             end
         end
     end
-    return closest
+    return closestPos
 end
 RunService.RenderStepped:Connect(function()
     if config.aimbotEnabled then
-        local target = getClosestPlayer()
-        if target then
-            camera.CFrame = CFrame.lookAt(camera.CFrame.Position, target.Position)
+        local targetPos = getClosestPlayer()
+        if targetPos then
+            camera.CFrame = CFrame.lookAt(camera.CFrame.Position, targetPos)
         end
     elseif config.aimAssistEnabled then
-        local target = getClosestPlayer()
-        if target then
-            local targetDir = (target.Position - camera.CFrame.Position).Unit
-            local newLook = camera.CFrame.LookVector:Lerp(targetDir, 0.3) -- Smoother lerp
+        local targetPos = getClosestPlayer()
+        if targetPos then
+            local targetDir = (targetPos - camera.CFrame.Position).Unit
+            local newLook = camera.CFrame.LookVector:Lerp(targetDir, 0.3)
             camera.CFrame = CFrame.lookAt(camera.CFrame.Position, camera.CFrame.Position + newLook)
         end
     end
