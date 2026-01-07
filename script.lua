@@ -1,70 +1,55 @@
 -- Haky Hub Special v7.4 - Game-Specific Features
--- Key improvements from v7.3:
--- * Made UI population dynamic based on selected game
--- * Added "Combat" tab for Rivals and Universal with Aimbot and Aim Assist
--- * For Universal: Added all features including combat + extra "Random Feature" button (does nothing, as per "random buttons")
--- * For Rivals: Fly, Noclip, Aimbot, Aim Assist (subset + specifics)
--- * For other games (Blox Fruits, Arsenal): Base features only (can expand later)
--- * Interweave base features; hide irrelevant ones per game if needed
--- * Implemented basic Aimbot (hard lock) and Aim Assist (smooth lerp)
-
-local Players          = game:GetService("Players")
-local RunService       = game:GetService("RunService")
+-- Fixed version: Cleaned syntax, completed missing functions, proper button references,
+-- added character respawn handling, implemented fly/noclip/ESP/invis/aimbot/aimassist properly.
+-- Added Trigger Bot feature.
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local TweenService     = game:GetService("TweenService")
-local Workspace        = game:GetService("Workspace")
-local Lighting         = game:GetService("Lighting")
-
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
 local player = Players.LocalPlayer
 local camera = Workspace.CurrentCamera
-
 -- Configuration & state
 local config = {
-    flyEnabled     = false,
-    flySpeed       = 80,
-    walkSpeed      = 16,
-    jumpPower      = 50,
-    infiniteJump   = false,
+    flyEnabled = false,
+    flySpeed = 80,
+    walkSpeed = 16,
+    jumpPower = 50,
+    infiniteJump = false,
     gravityEnabled = true,
-    espEnabled     = false,
-    invisEnabled   = false,
-    antiDetect     = false,
-    themeBlack     = false,
-    aimbotEnabled  = false,
+    espEnabled = false,
+    invisEnabled = false,
+    antiDetect = false,
+    themeBlack = false,
+    aimbotEnabled = false,
     aimAssistEnabled = false,
+    triggerBotEnabled = false,
 }
-
-local flying         = false
-local manualNoclip   = false
-local bodyGyro       = nil
-local bodyVelocity   = nil
-local ESPs           = {}
-local guiVisible     = true
-local minimized      = false
-local selectedGame   = ""
-
--- Valid keys (you can expand / change this list)
+local flying = false
+local manualNoclip = false
+local bodyGyro = nil
+local bodyVelocity = nil
+local ESPs = {}
+local guiVisible = true
+local minimized = false
+local selectedGame = ""
 local validKeys = {
     "myaccount420OnTop",
     "HaveAGreatDay",
     "85689",
     "myaccount420MenuOnTop"
 }
-
--- Games list (add more as needed)
 local games = {
     "Universal",
     "Rivals",
     "Blox Fruits",
     "Arsenal"
 }
-
 -- GUI creation
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "HakyHubV74"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = player:WaitForChild("PlayerGui")
-
 -- Key system GUI
 local KeyFrame = Instance.new("Frame")
 KeyFrame.Size = UDim2.new(0, 300, 0, 200)
@@ -72,7 +57,6 @@ KeyFrame.Position = UDim2.new(0.5, -150, 0.5, -100)
 KeyFrame.BackgroundColor3 = Color3.fromRGB(212, 175, 55)
 KeyFrame.Parent = ScreenGui
 Instance.new("UICorner", KeyFrame).CornerRadius = UDim.new(0, 16)
-
 local KeyTitle = Instance.new("TextLabel")
 KeyTitle.Size = UDim2.new(1, 0, 0, 50)
 KeyTitle.BackgroundTransparency = 1
@@ -81,7 +65,6 @@ KeyTitle.TextColor3 = Color3.new(1, 1, 1)
 KeyTitle.Font = Enum.Font.GothamBlack
 KeyTitle.TextSize = 26
 KeyTitle.Parent = KeyFrame
-
 local KeyBox = Instance.new("TextBox")
 KeyBox.Size = UDim2.new(1, -20, 0, 40)
 KeyBox.Position = UDim2.new(0, 10, 0, 60)
@@ -92,7 +75,6 @@ KeyBox.Font = Enum.Font.Gotham
 KeyBox.TextSize = 18
 KeyBox.Parent = KeyFrame
 Instance.new("UICorner", KeyBox).CornerRadius = UDim.new(0, 8)
-
 local SubmitBtn = Instance.new("TextButton")
 SubmitBtn.Size = UDim2.new(1, -20, 0, 40)
 SubmitBtn.Position = UDim2.new(0, 10, 0, 110)
@@ -103,7 +85,6 @@ SubmitBtn.Font = Enum.Font.GothamBold
 SubmitBtn.TextSize = 20
 SubmitBtn.Parent = KeyFrame
 Instance.new("UICorner", SubmitBtn).CornerRadius = UDim.new(0, 12)
-
 local KeyStatus = Instance.new("TextLabel")
 KeyStatus.Size = UDim2.new(1, -20, 0, 30)
 KeyStatus.Position = UDim2.new(0, 10, 0, 160)
@@ -113,8 +94,7 @@ KeyStatus.TextColor3 = Color3.new(1, 0, 0)
 KeyStatus.Font = Enum.Font.Gotham
 KeyStatus.TextSize = 16
 KeyStatus.Parent = KeyFrame
-
--- Game Selection GUI (hidden initially)
+-- Game Selection GUI
 local GameSelectionFrame = Instance.new("Frame")
 GameSelectionFrame.Size = UDim2.new(0, 300, 0, 300)
 GameSelectionFrame.Position = UDim2.new(0.5, -150, 0.5, -150)
@@ -122,7 +102,6 @@ GameSelectionFrame.BackgroundColor3 = Color3.fromRGB(212, 175, 55)
 GameSelectionFrame.Visible = false
 GameSelectionFrame.Parent = ScreenGui
 Instance.new("UICorner", GameSelectionFrame).CornerRadius = UDim.new(0, 16)
-
 local GameTitle = Instance.new("TextLabel")
 GameTitle.Size = UDim2.new(1, 0, 0, 50)
 GameTitle.BackgroundTransparency = 1
@@ -131,14 +110,12 @@ GameTitle.TextColor3 = Color3.new(1, 1, 1)
 GameTitle.Font = Enum.Font.GothamBlack
 GameTitle.TextSize = 26
 GameTitle.Parent = GameSelectionFrame
-
 local GameScroll = Instance.new("ScrollingFrame")
 GameScroll.Size = UDim2.new(1, -20, 1, -60)
 GameScroll.Position = UDim2.new(0, 10, 0, 50)
 GameScroll.BackgroundTransparency = 1
 GameScroll.ScrollBarThickness = 6
 GameScroll.Parent = GameSelectionFrame
-
 local GameList = Instance.new("UIListLayout")
 GameList.Padding = UDim.new(0, 10)
 GameList.HorizontalAlignment = Enum.HorizontalAlignment.Center
@@ -146,8 +123,7 @@ GameList.Parent = GameScroll
 GameList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     GameScroll.CanvasSize = UDim2.new(0, 0, 0, GameList.AbsoluteContentSize.Y + 20)
 end)
-
--- Main GUI (hidden until game selected)
+-- Main GUI
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 380, 0, 620)
 MainFrame.Position = UDim2.new(0, 50, 0, 50)
@@ -157,13 +133,11 @@ MainFrame.Draggable = true
 MainFrame.Visible = false
 MainFrame.Parent = ScreenGui
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 16)
-
 -- Title bar
 local TitleBar = Instance.new("Frame")
 TitleBar.Size = UDim2.new(1, 0, 0, 50)
 TitleBar.BackgroundTransparency = 1
 TitleBar.Parent = MainFrame
-
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -100, 1, 0)
 Title.BackgroundTransparency = 1
@@ -174,7 +148,6 @@ Title.TextSize = 26
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.Parent = TitleBar
-
 local MinimizeBtn = Instance.new("TextButton")
 MinimizeBtn.Size = UDim2.new(0, 40, 0, 40)
 MinimizeBtn.Position = UDim2.new(1, -85, 0, 5)
@@ -185,7 +158,6 @@ MinimizeBtn.Font = Enum.Font.GothamBold
 MinimizeBtn.TextSize = 30
 MinimizeBtn.Parent = TitleBar
 Instance.new("UICorner", MinimizeBtn).CornerRadius = UDim.new(0, 8)
-
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Size = UDim2.new(0, 40, 0, 40)
 CloseBtn.Position = UDim2.new(1, -45, 0, 5)
@@ -196,13 +168,11 @@ CloseBtn.Font = Enum.Font.GothamBold
 CloseBtn.TextSize = 24
 CloseBtn.Parent = TitleBar
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 8)
-
 local ContentFrame = Instance.new("Frame")
 ContentFrame.Size = UDim2.new(1, 0, 1, -50)
 ContentFrame.Position = UDim2.new(0, 0, 0, 50)
 ContentFrame.BackgroundTransparency = 1
 ContentFrame.Parent = MainFrame
-
 -- GUI toggle (Insert key)
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
@@ -211,7 +181,6 @@ UserInputService.InputBegan:Connect(function(input, gpe)
         MainFrame.Visible = guiVisible
     end
 end)
-
 -- Minimize toggle
 MinimizeBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
@@ -224,22 +193,172 @@ MinimizeBtn.MouseButton1Click:Connect(function()
         TweenService:Create(MainFrame, TweenInfo.new(0.3), {Size = UDim2.new(0, 380, 0, 620)}):Play()
     end
 end)
-
 -- Close GUI
 CloseBtn.MouseButton1Click:Connect(function()
     guiVisible = false
     MainFrame.Visible = false
 end)
-
 -- Helpers
 local function getRoot()
     return player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 end
-
 local function getHumanoid()
     return player.Character and player.Character:FindFirstChildOfClass("Humanoid")
 end
-
+-- Fly functions
+local function startFly()
+    if flying then return end
+    local root = getRoot()
+    if not root then return end
+    bodyGyro = Instance.new("BodyGyro")
+    bodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+    bodyGyro.P = 9e4
+    bodyGyro.Parent = root
+    bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    bodyVelocity.Velocity = Vector3.new(0,0,0)
+    bodyVelocity.Parent = root
+    flying = true
+end
+local function stopFly()
+    if not flying then return end
+    if bodyGyro then bodyGyro:Destroy() bodyGyro = nil end
+    if bodyVelocity then bodyVelocity:Destroy() bodyVelocity = nil end
+    flying = false
+end
+local function toggleFly()
+    config.flyEnabled = not config.flyEnabled
+    FlyBtn.Text = "Fly: " .. (config.flyEnabled and "ON" or "OFF")
+    if config.flyEnabled then
+        startFly()
+    else
+        stopFly()
+    end
+end
+-- Fly movement
+RunService.RenderStepped:Connect(function()
+    if flying then
+        local root = getRoot()
+        if not root then return end
+        local moveDir = Vector3.new(0,0,0)
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir += camera.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir -= camera.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir -= camera.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir += camera.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir += Vector3.new(0,1,0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then moveDir -= Vector3.new(0,1,0) end
+        if moveDir.Magnitude > 0 then moveDir = moveDir.Unit end
+        bodyVelocity.Velocity = moveDir * config.flySpeed
+        bodyGyro.CFrame = camera.CFrame
+    end
+end)
+-- Noclip
+local noclipConn
+local function toggleNoclip()
+    manualNoclip = not manualNoclip
+    NoclipBtn.Text = "Noclip: " .. (manualNoclip and "ON" or "OFF")
+    if manualNoclip then
+        if noclipConn then noclipConn:Disconnect() end
+        noclipConn = RunService.Stepped:Connect(function()
+            if player.Character then
+                for _, part in player.Character:GetDescendants() do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end)
+    else
+        if noclipConn then noclipConn:Disconnect() noclipConn = nil end
+    end
+end
+-- Infinite Jump
+local infJumpConn
+local function toggleInfJump()
+    config.infiniteJump = not config.infiniteJump
+    InfJumpBtn.Text = "Inf Jump: " .. (config.infiniteJump and "ON" or "OFF")
+    if config.infiniteJump then
+        infJumpConn = UserInputService.JumpRequest:Connect(function()
+            local hum = getHumanoid()
+            if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+        end)
+    else
+        if infJumpConn then infJumpConn:Disconnect() infJumpConn = nil end
+    end
+end
+-- Gravity toggle
+local function toggleGravity()
+    config.gravityEnabled = not config.gravityEnabled
+    Workspace.Gravity = config.gravityEnabled and 196.2 or 0
+    GravityBtn.Text = "Gravity: " .. (config.gravityEnabled and "ON" or "OFF")
+end
+-- ESP
+local function createESP(plr)
+    if plr == player or not plr.Character then return end
+    local head = plr.Character:FindFirstChild("Head")
+    if not head then return end
+    local bb = Instance.new("BillboardGui")
+    bb.Name = "ESP"
+    bb.Adornee = head
+    bb.Size = UDim2.new(0, 100, 0, 30)
+    bb.StudsOffset = Vector3.new(0, 3, 0)
+    bb.AlwaysOnTop = true
+    bb.Parent = head
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1,0,1,0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = plr.Name
+    lbl.TextColor3 = Color3.new(1,0,0)
+    lbl.TextStrokeTransparency = 0
+    lbl.TextStrokeColor3 = Color3.new(0,0,0)
+    lbl.Font = Enum.Font.SourceSansBold
+    lbl.TextSize = 20
+    lbl.Parent = bb
+    ESPs[plr] = bb
+end
+local function removeESP(plr)
+    if ESPs[plr] then ESPs[plr]:Destroy() ESPs[plr] = nil end
+end
+local function toggleESP()
+    config.espEnabled = not config.espEnabled
+    ESPBtn.Text = "ESP: " .. (config.espEnabled and "ON" or "OFF")
+    if config.espEnabled then
+        for _, plr in Players:GetPlayers() do
+            createESP(plr)
+        end
+        Players.PlayerAdded:Connect(createESP)
+        Players.PlayerRemoving:Connect(removeESP)
+    else
+        for plr, gui in pairs(ESPs) do gui:Destroy() end
+        ESPs = {}
+    end
+end
+-- Invisibility (local only)
+local function applyInvis()
+    if player.Character then
+        for _, part in player.Character:GetDescendants() do
+            if part:IsA("BasePart") or part:IsA("Decal") then
+                part.LocalTransparencyModifier = config.invisEnabled and 1 or 0
+            end
+        end
+    end
+end
+local function toggleInvis()
+    config.invisEnabled = not config.invisEnabled
+    InvisBtn.Text = "Invis: " .. (config.invisEnabled and "ON" or "OFF")
+    applyInvis()
+end
+-- Anti-Detect (simple name change)
+local function toggleAntiDetect()
+    config.antiDetect = not config.antiDetect
+    AntiDetectionBtn.Text = "Anti-Detect: " .. (config.antiDetect and "ON" or "OFF")
+    ScreenGui.Name = config.antiDetect and "RobloxGui" or "HakyHubV74"
+end
+-- Trigger Bot toggle
+local function toggleTriggerBot()
+    config.triggerBotEnabled = not config.triggerBotEnabled
+    TriggerBotBtn.Text = "Trigger Bot: " .. (config.triggerBotEnabled and "ON" or "OFF")
+end
 -- Button creator
 local function createButton(text, parent, callback)
     local btn = Instance.new("TextButton")
@@ -250,31 +369,23 @@ local function createButton(text, parent, callback)
     btn.Font = Enum.Font.GothamBold
     btn.TextSize = 19
     btn.TextWrapped = true
-    btn.TextTruncate = Enum.TextTruncate.SplitWord
     btn.Parent = parent
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 12)
-
     btn.MouseEnter:Connect(function()
         TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(255, 240, 100)}):Play()
     end)
     btn.MouseLeave:Connect(function()
         TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(255, 215, 0)}):Play()
     end)
-
-    if callback then
-        btn.MouseButton1Click:Connect(callback)
-    end
-
+    btn.MouseButton1Click:Connect(callback)
     return btn
 end
-
 -- Slider creator
 local function createSlider(name, default, min, max, callback, parent)
     local frame = Instance.new("Frame")
     frame.Size = UDim2.new(1, 0, 0, 70)
     frame.BackgroundTransparency = 1
     frame.Parent = parent
-
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1, 0, 0, 25)
     label.BackgroundTransparency = 1
@@ -284,40 +395,30 @@ local function createSlider(name, default, min, max, callback, parent)
     label.TextSize = 18
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.Parent = frame
-
     local sliderBg = Instance.new("Frame")
     sliderBg.Size = UDim2.new(1, 0, 0, 10)
     sliderBg.Position = UDim2.new(0, 0, 0, 40)
     sliderBg.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
     sliderBg.Parent = frame
     Instance.new("UICorner", sliderBg).CornerRadius = UDim.new(1, 0)
-
     local sliderFill = Instance.new("Frame")
     sliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
     sliderFill.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
     sliderFill.Parent = sliderBg
     Instance.new("UICorner", sliderFill).CornerRadius = UDim.new(1, 0)
-
     local sliderHandle = Instance.new("Frame")
     sliderHandle.Size = UDim2.new(0, 20, 0, 20)
     sliderHandle.Position = UDim2.new(sliderFill.Size.X.Scale, -10, 0, -5)
     sliderHandle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     sliderHandle.Parent = sliderBg
     Instance.new("UICorner", sliderHandle).CornerRadius = UDim.new(1, 0)
-
     local dragging = false
     sliderHandle.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-        end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
     end)
-
     UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
     end)
-
     UserInputService.InputChanged:Connect(function(input)
         if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
             local relX = math.clamp((input.Position.X - sliderBg.AbsolutePosition.X) / sliderBg.AbsoluteSize.X, 0, 1)
@@ -328,21 +429,13 @@ local function createSlider(name, default, min, max, callback, parent)
             callback(value)
         end
     end)
-
     return frame
 end
-
--- Function to build UI based on selected game
+-- Build UI based on selected game
 local function buildUI()
     Title.Text = "Haky Hub v7.4 for " .. selectedGame
-
     -- Discord button
-    local DiscordBtn = createButton("Copy Discord", ContentFrame)
-    DiscordBtn.Position = UDim2.new(0, 10, 0, 10)
-    DiscordBtn.Size = UDim2.new(1, -20, 0, 45)
-    DiscordBtn.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
-    DiscordBtn.TextColor3 = Color3.new(1, 1, 1)
-    DiscordBtn.MouseButton1Click:Connect(function()
+    local DiscordBtn = createButton("Copy Discord", ContentFrame, function()
         if setclipboard then setclipboard("https://discord.gg/4YsfGh6S6F") end
         local notify = Instance.new("TextLabel")
         notify.Size = UDim2.new(0, 260, 0, 50)
@@ -356,29 +449,29 @@ local function buildUI()
         Instance.new("UICorner", notify).CornerRadius = UDim.new(0, 12)
         task.delay(2.5, function() notify:Destroy() end)
     end)
-
-    -- Tab system
+    DiscordBtn.Position = UDim2.new(0, 10, 0, 10)
+    DiscordBtn.Size = UDim2.new(1, -20, 0, 45)
+    DiscordBtn.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
+    DiscordBtn.TextColor3 = Color3.new(1, 1, 1)
+    -- Tabs
     local tabs = {"Main", "Visuals", "Teleports", "Settings"}
     if selectedGame == "Rivals" or selectedGame == "Universal" then
         table.insert(tabs, "Combat")
     end
     local tabFrames = {}
     local tabButtons = {}
-
     local TabBar = Instance.new("Frame")
     TabBar.Size = UDim2.new(1, -20, 0, 40)
     TabBar.Position = UDim2.new(0, 10, 0, 65)
     TabBar.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
     TabBar.Parent = ContentFrame
     Instance.new("UICorner", TabBar).CornerRadius = UDim.new(0, 8)
-
     local TabLayout = Instance.new("UIListLayout")
     TabLayout.FillDirection = Enum.FillDirection.Horizontal
     TabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
     TabLayout.VerticalAlignment = Enum.VerticalAlignment.Center
     TabLayout.Padding = UDim.new(0, 5)
     TabLayout.Parent = TabBar
-
     local function createTabButton(text)
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(0, 80, 1, 0)
@@ -392,11 +485,9 @@ local function buildUI()
         btn.Parent = TabBar
         return btn
     end
-
     for _, tabName in ipairs(tabs) do
         local btn = createTabButton(tabName)
         tabButtons[tabName] = btn
-
         local frame = Instance.new("ScrollingFrame")
         frame.Size = UDim2.new(1, -20, 0, 450)
         frame.Position = UDim2.new(0, 10, 0, 115)
@@ -405,16 +496,13 @@ local function buildUI()
         frame.ScrollBarThickness = 8
         frame.Visible = false
         frame.Parent = ContentFrame
-
         local list = Instance.new("UIListLayout")
         list.Padding = UDim.new(0, 12)
         list.Parent = frame
         list:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
             frame.CanvasSize = UDim2.new(0, 0, 0, list.AbsoluteContentSize.Y + 20)
         end)
-
         tabFrames[tabName] = frame
-
         btn.MouseButton1Click:Connect(function()
             for _, f in pairs(tabFrames) do f.Visible = false end
             tabFrames[tabName].Visible = true
@@ -422,106 +510,67 @@ local function buildUI()
             btn.BackgroundTransparency = 0
         end)
     end
-
-    -- Select first tab
     tabFrames[tabs[1]].Visible = true
     tabButtons[tabs[1]].BackgroundTransparency = 0
-
-    -- Populate tabs based on game
     local mainTab = tabFrames["Main"]
     local visualsTab = tabFrames["Visuals"]
     local teleportsTab = tabFrames["Teleports"]
     local settingsTab = tabFrames["Settings"]
     local combatTab = tabFrames["Combat"]
-
-    -- Base features for all games
     -- Main tab: Movement
-    local hasMovement = true -- All have
-    if hasMovement then
-        createButton("Fly: OFF", mainTab, toggleFly)
-        createButton("Noclip: OFF", mainTab, function()
-            manualNoclip = not manualNoclip
-            NoclipBtn.Text = "Noclip: " .. (manualNoclip and "ON" or "OFF")
+    FlyBtn = createButton("Fly: OFF", mainTab, toggleFly)
+    NoclipBtn = createButton("Noclip: OFF", mainTab, toggleNoclip)
+    if selectedGame ~= "Rivals" then
+        InfJumpBtn = createButton("Inf Jump: OFF", mainTab, toggleInfJump)
+        GravityBtn = createButton("Gravity: ON", mainTab, toggleGravity)
+        createSlider("Walk Speed", config.walkSpeed, 16, 5000, function(v)
+            config.walkSpeed = v
+            local hum = getHumanoid()
+            if hum then hum.WalkSpeed = v end
+        end, mainTab)
+        createSlider("Jump Power", config.jumpPower, 50, 2000, function(v)
+            config.jumpPower = v
+            local hum = getHumanoid()
+            if hum then hum.JumpPower = v end
+        end, mainTab)
+        createButton("Max Speed", mainTab, function()
+            config.walkSpeed = 5000
+            local hum = getHumanoid()
+            if hum then hum.WalkSpeed = 5000 end
         end)
-        if selectedGame ~= "Rivals" then -- Rivals has subset, no inf jump etc.
-            createButton("Inf Jump: OFF", mainTab, function()
-                config.infiniteJump = not config.infiniteJump
-                InfJumpBtn.Text = "Inf Jump: " .. (config.infiniteJump and "ON" or "OFF")
-            end)
-            createButton("Gravity: ON", mainTab, function()
-                config.gravityEnabled = not config.gravityEnabled
-                Workspace.Gravity = config.gravityEnabled and 196.2 or 0
-                GravityBtn.Text = "Gravity: " .. (config.gravityEnabled and "ON" or "OFF")
-            end)
-            createSlider("Walk Speed", config.walkSpeed, 16, 5000, function(v)
-                config.walkSpeed = v
-                local hum = getHumanoid()
-                if hum then hum.WalkSpeed = v end
-            end, mainTab)
-            createSlider("Jump Power", config.jumpPower, 50, 2000, function(v)
-                config.jumpPower = v
-                local hum = getHumanoid()
-                if hum then hum.JumpPower = v end
-            end, mainTab)
-            createButton("Max Speed", mainTab, function()
-                config.walkSpeed = 5000
-                local hum = getHumanoid()
-                if hum then hum.WalkSpeed = 5000 end
-            end)
-            createButton("Reset Speed", mainTab, function()
-                config.walkSpeed = 16
-                local hum = getHumanoid()
-                if hum then hum.WalkSpeed = 16 end
-            end)
-            createButton("Super Jump", mainTab, function()
-                config.jumpPower = 1000
-                local hum = getHumanoid()
-                if hum then hum.JumpPower = 1000 end
-            end)
-            createButton("Reset Jump", mainTab, function()
-                config.jumpPower = 50
-                local hum = getHumanoid()
-                if hum then hum.JumpPower = 50 end
-            end)
-        end
-        createSlider("Fly Speed", config.flySpeed, 10, 500, function(v) config.flySpeed = v end, mainTab)
+        createButton("Reset Speed", mainTab, function()
+            config.walkSpeed = 16
+            local hum = getHumanoid()
+            if hum then hum.WalkSpeed = 16 end
+        end)
+        createButton("Super Jump", mainTab, function()
+            config.jumpPower = 1000
+            local hum = getHumanoid()
+            if hum then hum.JumpPower = 1000 end
+        end)
+        createButton("Reset Jump", mainTab, function()
+            config.jumpPower = 50
+            local hum = getHumanoid()
+            if hum then hum.JumpPower = 50 end
+        end)
     end
-
+    createSlider("Fly Speed", config.flySpeed, 10, 500, function(v)
+        config.flySpeed = v
+    end, mainTab)
     -- Visuals tab
-    if selectedGame ~= "Rivals" then -- Rivals subset, no ESP invis
-        createButton("ESP: OFF", visualsTab, function()
-            config.espEnabled = not config.espEnabled
-            ESPBtn.Text = "ESP: " .. (config.espEnabled and "ON" or "OFF")
-            -- ... (ESP logic as before)
-        end)
-        createButton("Invis: OFF", visualsTab, function()
-            config.invisEnabled = not config.invisEnabled
-            InvisBtn.Text = "Invis: " .. (config.invisEnabled and "ON" or "OFF")
-            applyInvis()
-        end)
+    if selectedGame ~= "Rivals" then
+        ESPBtn = createButton("ESP: OFF", visualsTab, toggleESP)
+        InvisBtn = createButton("Invis: OFF", visualsTab, toggleInvis)
     end
-
-    -- Teleports tab
-    if selectedGame ~= "Rivals" then -- Assume Rivals no TP
-        createButton("TP to Spawn", teleportsTab, function()
-            -- TP logic
-        end)
-        createButton("TP to Player", teleportsTab, function()
-            -- TP list logic
-        end)
+    -- Teleports tab (placeholder)
+    if selectedGame ~= "Rivals" then
+        createButton("TP to Spawn", teleportsTab, function() end)
+        createButton("TP to Player", teleportsTab, function() end)
     end
-
     -- Settings tab
-    createButton("Anti-Detect: OFF", settingsTab, function()
-        config.antiDetect = not config.antiDetect
-        AntiDetectionBtn.Text = "Anti-Detect: " .. (config.antiDetect and "ON" or "OFF")
-        if config.antiDetect then obfuscateInstances() end
-    end)
-    createButton("Theme: Gold", settingsTab, function()
-        -- Theme logic
-    end)
-
-    -- Combat tab for Rivals and Universal
+    AntiDetectionBtn = createButton("Anti-Detect: OFF", settingsTab, toggleAntiDetect)
+    createButton("Theme: Gold", settingsTab, function() end) -- Placeholder
+    -- Combat tab
     if combatTab then
         local AimbotBtn = createButton("Aimbot: OFF", combatTab, function()
             config.aimbotEnabled = not config.aimbotEnabled
@@ -531,29 +580,18 @@ local function buildUI()
             config.aimAssistEnabled = not config.aimAssistEnabled
             AimAssistBtn.Text = "Aim Assist: " .. (config.aimAssistEnabled and "ON" or "OFF")
         end)
+        TriggerBotBtn = createButton("Trigger Bot: OFF", combatTab, toggleTriggerBot)
     end
-
-    -- Universal-specific random buttons
+    -- Universal random buttons
     if selectedGame == "Universal" then
-        createButton("Random Feature 1", mainTab, function()
-            print("Random feature activated!")
-        end)
-        createButton("Random Feature 2", visualsTab, function()
-            print("Another random feature!")
-        end)
+        createButton("Random Feature 1", mainTab, function() print("Random feature activated!") end)
+        createButton("Random Feature 2", visualsTab, function() print("Another random feature!") end)
     end
-
-    -- Game-specific for others (placeholders)
+    -- Game-specific placeholders
     if selectedGame == "Blox Fruits" then
-        -- Add e.g. Fruit ESP button
-        createButton("Fruit ESP: OFF", visualsTab, function()
-            -- Impl
-        end)
-    elseif selectedGame == "Arsenal" then
-        -- Similar to Rivals, but perhaps add more
+        createButton("Fruit ESP: OFF", visualsTab, function() end)
     end
 end
-
 -- Create game buttons
 for _, gameName in ipairs(games) do
     local btn = Instance.new("TextButton")
@@ -565,28 +603,19 @@ for _, gameName in ipairs(games) do
     btn.TextSize = 20
     btn.Parent = GameScroll
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 12)
-
     btn.MouseButton1Click:Connect(function()
         selectedGame = gameName
         GameSelectionFrame:Destroy()
         MainFrame.Visible = true
         guiVisible = true
-        buildUI() -- Build dynamic UI
+        buildUI()
     end)
 end
-
--- Fly logic (same as before)
-local function toggleFly()
-    -- Fly toggle code
-end
-
--- Noclip, Inf Jump, ESP, Invis, TP, Anti-Detect, Theme logic (same as before)
-
--- Aimbot and Aim Assist logic
+-- Aimbot / Aim Assist / Trigger Bot
 local function getClosestPlayer()
     local closest, minDist = nil, math.huge
     local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
-    for _, plr in ipairs(Players:GetPlayers()) do
+    for _, plr in Players:GetPlayers() do
         if plr ~= player and plr.Character and plr.Character:FindFirstChild("Head") then
             local head = plr.Character.Head
             local pos, onScreen = camera:WorldToViewportPoint(head.Position)
@@ -601,7 +630,6 @@ local function getClosestPlayer()
     end
     return closest
 end
-
 RunService.RenderStepped:Connect(function()
     if config.aimbotEnabled then
         local target = getClosestPlayer()
@@ -612,12 +640,24 @@ RunService.RenderStepped:Connect(function()
         local target = getClosestPlayer()
         if target then
             local targetDir = (target.Position - camera.CFrame.Position).Unit
-            local newLook = camera.CFrame.LookVector:Lerp(targetDir, 0.5) -- Adjust lerp factor
+            local newLook = camera.CFrame.LookVector:Lerp(targetDir, 0.3) -- Smoother lerp
             camera.CFrame = CFrame.lookAt(camera.CFrame.Position, camera.CFrame.Position + newLook)
         end
     end
+    if config.triggerBotEnabled then
+        local mouse = player:GetMouse()
+        if mouse.Target then
+            local hitPart = mouse.Target
+            local hitChar = hitPart:FindFirstAncestorWhichIsA("Model")
+            if hitChar and hitChar:FindFirstChild("Humanoid") and Players:GetPlayerFromCharacter(hitChar) and hitChar ~= player.Character then
+                local tool = player.Character:FindFirstChildOfClass("Tool")
+                if tool then
+                    tool:Activate()
+                end
+            end
+        end
+    end
 end)
-
 -- Key validation
 SubmitBtn.MouseButton1Click:Connect(function()
     local entered = KeyBox.Text
@@ -625,7 +665,6 @@ SubmitBtn.MouseButton1Click:Connect(function()
     for _, key in validKeys do
         if entered == key then valid = true break end
     end
-
     if valid then
         KeyStatus.Text = "Key accepted!"
         KeyStatus.TextColor3 = Color3.new(0, 1, 0)
@@ -638,7 +677,17 @@ SubmitBtn.MouseButton1Click:Connect(function()
         KeyStatus.TextColor3 = Color3.new(1, 0, 0)
     end
 end)
-
--- Respawn handling (same as before)
-
+-- Respawn handling
+player.CharacterAdded:Connect(function()
+    task.wait(0.5) -- Wait for character to load
+    if config.flyEnabled then startFly() end
+    if config.invisEnabled then applyInvis() end
+    local hum = getHumanoid()
+    if hum then
+        hum.WalkSpeed = config.walkSpeed
+        hum.JumpPower = config.jumpPower
+    end
+end)
+-- Initial update
+Workspace.Gravity = config.gravityEnabled and 196.2 or 0
 print("Haky Hub Special v7.4 LOADED with Game-Specific Features!")
