@@ -7,6 +7,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 local player = Players.LocalPlayer
 local camera = Workspace.CurrentCamera
 -- Configuration & state
@@ -270,6 +271,13 @@ local function toggleNoclip()
         end)
     else
         if noclipConn then noclipConn:Disconnect() noclipConn = nil end
+        if player.Character then
+            for _, part in player.Character:GetDescendants() do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
+                end
+            end
+        end
     end
 end
 -- Infinite Jump
@@ -650,10 +658,8 @@ RunService.RenderStepped:Connect(function()
             local hitPart = mouse.Target
             local hitChar = hitPart:FindFirstAncestorWhichIsA("Model")
             if hitChar and hitChar:FindFirstChild("Humanoid") and Players:GetPlayerFromCharacter(hitChar) and hitChar ~= player.Character then
-                local tool = player.Character:FindFirstChildOfClass("Tool")
-                if tool then
-                    tool:Activate()
-                end
+                VirtualInputManager:SendMouseButtonEvent(mouse.X, mouse.Y, 0, true, game, 0)
+                VirtualInputManager:SendMouseButtonEvent(mouse.X, mouse.Y, 0, false, game, 0)
             end
         end
     end
@@ -686,6 +692,10 @@ player.CharacterAdded:Connect(function()
     if hum then
         hum.WalkSpeed = config.walkSpeed
         hum.JumpPower = config.jumpPower
+    end
+    if manualNoclip then
+        toggleNoclip()
+        toggleNoclip()
     end
 end)
 -- Initial update
