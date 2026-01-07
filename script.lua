@@ -1,7 +1,7 @@
--- Haky Hub Special v7.4 - Game-Specific Features
+-- Haky Hub Special v7.5 - Game-Specific Features
 -- Fixed version: Cleaned syntax, completed missing functions, proper button references,
 -- added character respawn handling, implemented fly/noclip/ESP/invis/aimbot/aimassist properly.
--- Added Trigger Bot feature.
+-- Added Trigger Bot feature: auto-clicks when mouse is over a player.
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -47,7 +47,7 @@ local games = {
 }
 -- GUI creation
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "HakyHubV74"
+ScreenGui.Name = "HakyHubV75"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = player:WaitForChild("PlayerGui")
 -- Key system GUI
@@ -141,7 +141,7 @@ TitleBar.Parent = MainFrame
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -100, 1, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "Haky Hub v7.4"
+Title.Text = "Haky Hub v7.5"
 Title.TextColor3 = Color3.new(1, 1, 1)
 Title.Font = Enum.Font.GothamBlack
 Title.TextSize = 26
@@ -352,7 +352,7 @@ end
 local function toggleAntiDetect()
     config.antiDetect = not config.antiDetect
     AntiDetectionBtn.Text = "Anti-Detect: " .. (config.antiDetect and "ON" or "OFF")
-    ScreenGui.Name = config.antiDetect and "RobloxGui" or "HakyHubV74"
+    ScreenGui.Name = config.antiDetect and "RobloxGui" or "HakyHubV75"
 end
 -- Trigger Bot toggle
 local function toggleTriggerBot()
@@ -433,7 +433,7 @@ local function createSlider(name, default, min, max, callback, parent)
 end
 -- Build UI based on selected game
 local function buildUI()
-    Title.Text = "Haky Hub v7.4 for " .. selectedGame
+    Title.Text = "Haky Hub v7.5 for " .. selectedGame
     -- Discord button
     local DiscordBtn = createButton("Copy Discord", ContentFrame, function()
         if setclipboard then setclipboard("https://discord.gg/4YsfGh6S6F") end
@@ -544,9 +544,9 @@ local function buildUI()
             if hum then hum.WalkSpeed = 16 end
         end)
         createButton("Super Jump", mainTab, function()
-            config.jumpPower = 1000
+            config.jumpPower = 2000
             local hum = getHumanoid()
-            if hum then hum.JumpPower = 1000 end
+            if hum then hum.JumpPower = 2000 end
         end)
         createButton("Reset Jump", mainTab, function()
             config.jumpPower = 50
@@ -690,4 +690,4 @@ player.CharacterAdded:Connect(function()
 end)
 -- Initial update
 Workspace.Gravity = config.gravityEnabled and 196.2 or 0
-print("Haky Hub Special v7.4 LOADED with Game-Specific Features!")
+print("Haky Hub Special v7.5 LOADED with Game-Specific Features!")
